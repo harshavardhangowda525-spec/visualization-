@@ -18,7 +18,9 @@
     "preview": "node --env-file-if-exists=.env scripts/dev.mjs",
     "test:e2e": "playwright test",
     "worker": "node scripts/worker.mjs",
-    "pretest": "npm run build -w apps/api"
+    "pretest": "npm run build -w apps/api",
+    "start:render": "node scripts/render-start.mjs",
+    "test:render": "node scripts/verify-render.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.0"

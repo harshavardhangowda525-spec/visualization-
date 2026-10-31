@@ -69,3 +69,11 @@ No production deployment, paid resource provisioning or live payment was perform
 Reviewed the official BookMyShow homepage and live desktop layout. Implemented its recognizable discovery and booking structure for the studio services with the client's own provisional brand. Server-side catalogue search supports studio, description, service and category; `/api/v1/locations` lists active catalogue locations. Updated public E2E test source and expanded HTTP integration assertions. See `docs/DESIGN_REVIEW.md` for design decisions and verification limits.
 
 Public GitHub source: https://github.com/harshavardhangowda525-spec/visualization- . The separately hosted owner-private visual preview is updated independently; it is not a Vercel/Supabase production deployment. Authentication/provider credentials, approved client content and production release verification remain pending.
+
+## Render deployment preparation — 31 October 2026
+
+Added a Free-plan preview Blueprint, private PostgreSQL 16 reference, automatic secret/origin wiring, production process supervisor, migration/preview-seed guards, maintenance cycle, health checks, deploy guide and deployment-boundary tests. The actual Next.js frontend connects to NestJS over a same-origin proxy; the existing static visual preview is separate.
+
+Render dashboard currently requires sign-in. No Render service/database has been created and no live Render URL has been verified. Provider credentials remain unconfigured. The preview uses temporary Free resources only; paid capacity and production readiness have not been approved or claimed.
+
+Render preparation verification: official Blueprint JSON Schema validation passed; `npm run build` and `npm run typecheck` passed; 34 unit/integration tests passed, with the real external PostgreSQL concurrency test skipped. `npm run test:render` passed against the built production-mode Next/Nest processes and an isolated test database, covering health, proxy, SSR sample catalogue, protected admin, missing-Cognito fail-closed behavior and maintenance. This is local verification; live Render build, database migration and service health remain pending account access.

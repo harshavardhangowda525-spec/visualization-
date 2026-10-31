@@ -70,20 +70,18 @@ class Errors implements ExceptionFilter {
           code: error.code,
         }),
       );
-    res
-      .status(status)
-      .json({
-        statusCode: status,
-        message,
-        requestId: req.requestId,
-        ...(process.env.NODE_ENV !== "production"
-          ? {
-              errorType: error.name,
-              errorCode: error.code || error.errorCode,
-              databaseCode: error.meta?.code,
-            }
-          : {}),
-      });
+    res.status(status).json({
+      statusCode: status,
+      message,
+      requestId: req.requestId,
+      ...(process.env.NODE_ENV !== "production"
+        ? {
+            errorType: error.name,
+            errorCode: error.code || error.errorCode,
+            databaseCode: error.meta?.code,
+          }
+        : {}),
+    });
   }
 }
 @Global()
@@ -199,7 +197,10 @@ export async function bootstrap() {
   }
   app.setGlobalPrefix("api/v1");
   app.enableShutdownHooks();
-  await app.listen(Number(process.env.PORT) || 4000, "0.0.0.0");
+  await app.listen(
+    Number(process.env.PORT) || 4000,
+    process.env.API_BIND_HOST || "0.0.0.0",
+  );
   return app;
 }
 if (require.main === module)

@@ -1527,3 +1527,12 @@ label {
     transition: none;
   }
 }
+
+.deployment-preview-notice {
+  background: #2b3148;
+  color: #fff;
+  text-align: center;
+  font-size: 11px;
+  padding: 7px 18px;
+  letter-spacing: 0.2px;
+}

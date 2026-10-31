@@ -1,0 +1,63 @@
+# Review/test deployment only. Free PostgreSQL expires; this is not the production architecture.
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+services:
+  - type: web
+    name: infinity-studio-preview
+    runtime: node
+    region: singapore
+    plan: free
+    branch: main
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --include=dev && npm run db:generate && npm run build
+    startCommand: npm run start:render
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DEPLOYMENT_ENV
+        value: preview
+      - key: RUN_DATABASE_MIGRATIONS
+        value: "true"
+      - key: SEED_PREVIEW_CATALOGUE
+        value: "true"
+      - key: ENABLE_MAINTENANCE_WORKER
+        value: "true"
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: API_INTERNAL_URL
+        value: http://127.0.0.1:4000
+      - key: API_BIND_HOST
+        value: 127.0.0.1
+      - key: WEB_ORIGIN
+        fromService:
+          name: infinity-studio-preview
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_SITE_URL
+        fromService:
+          name: infinity-studio-preview
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: DATABASE_URL
+        fromDatabase:
+          name: infinity-studio-preview-db
+          property: connectionString
+      - key: OTP_PEPPER
+        generateValue: true
+      - key: AWS_REGION
+        value: ap-south-1
+      - key: BUSINESS_TIMEZONE
+        value: Asia/Kolkata
+      - key: LOG_LEVEL
+        value: warn
+
+databases:
+  - name: infinity-studio-preview-db
+    databaseName: studio_preview
+    user: studio_preview
+    region: singapore
+    plan: free
+    postgresMajorVersion: "16"
+    ipAllowList: []

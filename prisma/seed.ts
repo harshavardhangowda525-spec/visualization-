@@ -1,9 +1,15 @@
 import { PrismaClient } from "@prisma/client";
 const db = new PrismaClient();
 async function main() {
-  if (process.env.NODE_ENV === "production")
+  if (
+    process.env.NODE_ENV === "production" &&
+    !(
+      process.env.DEPLOYMENT_ENV === "preview" &&
+      process.env.SEED_PREVIEW_CATALOGUE === "true"
+    )
+  )
     throw new Error(
-      "Development seed is disabled in production. Import approved client data instead.",
+      "Development seed is disabled outside an explicitly opted-in preview. Import approved client data for production.",
     );
   for (const name of ["CUSTOMER", "STAFF", "ADMIN"])
     await db.role.upsert({ where: { name }, create: { name }, update: {} });

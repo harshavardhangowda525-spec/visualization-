@@ -18,8 +18,12 @@ export const metadata: Metadata = {
     images: ["/images/studio-hero.webp"],
   },
   robots: {
-    index: process.env.NODE_ENV === "production",
-    follow: process.env.NODE_ENV === "production",
+    index:
+      process.env.NODE_ENV === "production" &&
+      process.env.DEPLOYMENT_ENV !== "preview",
+    follow:
+      process.env.NODE_ENV === "production" &&
+      process.env.DEPLOYMENT_ENV !== "preview",
   },
 };
 export default async function RootLayout({
@@ -37,6 +41,11 @@ export default async function RootLayout({
         <a className="skip" href="#main">
           Skip to content
         </a>
+        {process.env.DEPLOYMENT_ENV === "preview" ? (
+          <div className="deployment-preview-notice" role="note">
+            Preview environment · Sample studios and pricing
+          </div>
+        ) : null}
         <Header />
         {children}
         <footer className="footer">

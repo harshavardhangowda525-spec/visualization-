@@ -1,0 +1,387 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  cognitoSub String   @unique
+  phone      String   @unique
+  name       String   @default("")
+  email      String?
+  role       String   @default("CUSTOMER")
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("users")
+}
+
+model CustomerProfile {
+  userId  String  @id @db.Uuid
+  company String?
+
+  @@map("customer_profiles")
+}
+
+model StaffProfile {
+  userId String  @id @db.Uuid
+  title  String
+  active Boolean @default(true)
+
+  @@map("staff_profiles")
+}
+
+model Role {
+  name String @id
+
+  @@map("roles")
+}
+
+model Permission {
+  id     String @id @default(uuid()) @db.Uuid
+  role   String
+  action String
+
+  @@unique([role, action])
+  @@map("permissions")
+}
+
+model Category {
+  id          String @id @default(uuid()) @db.Uuid
+  slug        String @unique
+  name        String
+  description String
+  image       String
+
+  @@map("studio_categories")
+}
+
+model Studio {
+  id            String           @id @default(uuid()) @db.Uuid
+  slug          String           @unique
+  categoryId    String           @db.Uuid
+  name          String
+  description   String
+  location      String
+  capacity      Int
+  equipment     String[]
+  active        Boolean          @default(true)
+  bufferMinutes Int              @default(15)
+  timezone      String           @default("Asia/Kolkata")
+  services      Service[]
+  images        StudioImage[]
+  facilities    StudioFacility[]
+  hours         StudioHours[]
+
+  @@map("studios")
+}
+
+model StudioImage {
+  id       String @id @default(uuid()) @db.Uuid
+  studioId String @db.Uuid
+  studio   Studio @relation(fields: [studioId], references: [id])
+  url      String
+  alt      String
+  sort     Int    @default(0)
+
+  @@map("studio_images")
+}
+
+model StudioFacility {
+  id       String @id @default(uuid()) @db.Uuid
+  studioId String @db.Uuid
+  studio   Studio @relation(fields: [studioId], references: [id])
+  name     String
+
+  @@unique([studioId, name])
+  @@map("studio_facilities")
+}
+
+model Service {
+  id          String  @id @default(uuid()) @db.Uuid
+  studioId    String  @db.Uuid
+  studio      Studio  @relation(fields: [studioId], references: [id])
+  name        String
+  hourlyPaise Int
+  minMinutes  Int     @default(60)
+  maxMinutes  Int     @default(480)
+  stepMinutes Int     @default(30)
+  taxBps      Int     @default(1800)
+  active      Boolean @default(true)
+
+  @@map("services")
+}
+
+model ServicePricing {
+  id          String   @id @default(uuid()) @db.Uuid
+  serviceId   String   @db.Uuid
+  hourlyPaise Int
+  taxBps      Int
+  changedAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("service_pricing")
+}
+
+model StudioHours {
+  id          String @id @default(uuid()) @db.Uuid
+  studioId    String @db.Uuid
+  studio      Studio @relation(fields: [studioId], references: [id])
+  weekday     Int
+  openMinute  Int
+  closeMinute Int
+
+  @@unique([studioId, weekday])
+  @@map("studio_availability")
+}
+
+model Reservation {
+  id        String    @id @default(uuid()) @db.Uuid
+  studioId  String    @db.Uuid
+  bookingId String?   @unique @db.Uuid
+  startsAt  DateTime  @db.Timestamptz(3)
+  endsAt    DateTime  @db.Timestamptz(3)
+  expiresAt DateTime? @db.Timestamptz(3)
+  active    Boolean   @default(true)
+  kind      String    @default("HOLD")
+  reason    String?
+
+  @@index([studioId, startsAt, endsAt])
+  @@map("booking_holds")
+}
+
+model BlockedTimeSlot {
+  id            String @id @default(uuid()) @db.Uuid
+  reservationId String @unique @db.Uuid
+  reason        String
+
+  @@map("blocked_time_slots")
+}
+
+model Booking {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @db.Uuid
+  studioId        String    @db.Uuid
+  serviceId       String    @db.Uuid
+  startsAt        DateTime  @db.Timestamptz(3)
+  endsAt          DateTime  @db.Timestamptz(3)
+  expiresAt       DateTime  @db.Timestamptz(3)
+  status          String    @default("HELD")
+  subtotalPaise   Int
+  discountPaise   Int
+  taxPaise        Int
+  totalPaise      Int
+  membershipId    String?   @db.Uuid
+  creditMinutes   Int       @default(0)
+  pricingSnapshot Json
+  policySnapshot  Json
+  idempotencyKey  String
+  requestHash     String
+  actualStart     DateTime? @db.Timestamptz(3)
+  actualEnd       DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@unique([userId, idempotencyKey])
+  @@index([studioId, startsAt])
+  @@index([userId, createdAt])
+  @@map("bookings")
+}
+
+model BookingStatusHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @db.Uuid
+  status    String
+  actorId   String?  @db.Uuid
+  reason    String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("booking_status_history")
+}
+
+model Payment {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  bookingId      String?   @unique @db.Uuid
+  subscriptionId String?   @unique @db.Uuid
+  orderId        String    @unique
+  paymentId      String?   @unique
+  amountPaise    Int
+  currency       String    @default("INR")
+  status         String    @default("CREATED")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  capturedAt     DateTime? @db.Timestamptz(3)
+
+  @@map("payments")
+}
+
+model WebhookEvent {
+  id          String   @id
+  payloadHash String
+  processedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("payment_webhook_events")
+}
+
+model Refund {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @db.Uuid
+  gatewayId   String?  @unique
+  amountPaise Int
+  status      String   @default("REQUESTED")
+  reason      String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("refunds")
+}
+
+model MembershipPlan {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  description   String
+  pricePaise    Int
+  days          Int
+  discountBps   Int
+  creditMinutes Int      @default(0)
+  maxBookings   Int      @default(10)
+  benefits      String[]
+  active        Boolean  @default(true)
+
+  @@map("membership_plans")
+}
+
+model Membership {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @db.Uuid
+  planId            String   @db.Uuid
+  subscriptionId    String   @unique @db.Uuid
+  startsAt          DateTime @db.Timestamptz(3)
+  expiresAt         DateTime @db.Timestamptz(3)
+  discountBps       Int
+  remainingMinutes  Int
+  remainingBookings Int
+  status            String   @default("ACTIVE")
+
+  @@index([userId, status])
+  @@map("memberships")
+}
+
+model Subscription {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  planId         String   @db.Uuid
+  planSnapshot   Json
+  status         String   @default("PENDING")
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([userId, idempotencyKey])
+  @@map("membership_subscriptions")
+}
+
+model MembershipUsage {
+  id            String  @id @default(uuid()) @db.Uuid
+  membershipId  String  @db.Uuid
+  bookingId     String  @unique @db.Uuid
+  minutes       Int
+  discountPaise Int
+  released      Boolean @default(false)
+
+  @@map("membership_usage")
+}
+
+model SessionVerification {
+  id         String    @id @default(uuid()) @db.Uuid
+  bookingId  String    @db.Uuid
+  purpose    String
+  hash       String
+  salt       String
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([bookingId, purpose])
+  @@map("session_verifications")
+}
+
+model StaffAssignment {
+  id        String @id @default(uuid()) @db.Uuid
+  bookingId String @unique @db.Uuid
+  staffId   String @db.Uuid
+
+  @@map("staff_assignments")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  type      String
+  content   String
+  status    String   @default("PENDING")
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("notifications")
+}
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @unique @db.Uuid
+  userId    String   @db.Uuid
+  rating    Int
+  text      String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("reviews")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @db.Uuid
+  action    String
+  entityId  String
+  detail    Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Setting {
+  key   String @id
+  value Json
+
+  @@map("system_settings")
+}
+
+model AuthSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@map("auth_sessions")
+}
+
+model AuthChallenge {
+  id             String    @id @default(uuid()) @db.Uuid
+  phone          String
+  cognitoSession String
+  attempts       Int       @default(0)
+  expiresAt      DateTime  @db.Timestamptz(3)
+  consumedAt     DateTime? @db.Timestamptz(3)
+
+  @@map("auth_challenges")
+}
+
+model RateBucket {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@map("rate_buckets")
+}

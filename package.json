@@ -1,0 +1,44 @@
+{
+  "name": "infinity-studio-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env scripts/dev.mjs",
+    "dev:api": "npm run build -w apps/api && npm start -w apps/api",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "typecheck": "tsc --noEmit -p apps/api && tsc --noEmit -p apps/web",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "node --import tsx prisma/seed.ts",
+    "db:local": "node scripts/local-db.mjs",
+    "dev:web": "npm run dev -w apps/web",
+    "preview": "node --env-file-if-exists=.env scripts/dev.mjs",
+    "test:e2e": "playwright test",
+    "worker": "node scripts/worker.mjs",
+    "pretest": "npm run build -w apps/api"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
+    "@electric-sql/pglite-socket": "^0.2.16",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.5",
+    "pg": "^8.16.3",
+    "prisma": "6.19.0",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "multer": "^2.5.0",
+    "js-yaml": "^5.4.1",
+    "effect": "^3.20.0",
+    "deepmerge-ts": "^8.0.0"
+  }
+}

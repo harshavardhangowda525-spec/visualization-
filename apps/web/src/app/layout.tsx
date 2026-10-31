@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { serverApi } from "@/lib/api";
 import { Header } from "@/components/header";
 import "./globals.css";
+import "./marketplace.css";
 const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(base),

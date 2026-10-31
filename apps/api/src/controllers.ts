@@ -130,6 +130,15 @@ export class CatalogController {
       })),
     );
   }
+  @Get("locations") async locations() {
+    const rows = await this.db.studio.findMany({
+      where: { active: true },
+      distinct: ["location"],
+      select: { location: true },
+      orderBy: { location: "asc" },
+    });
+    return rows.map((r) => r.location);
+  }
   @Get("studios") async list(@Query() q: Record<string, string>) {
     const page = Math.max(1, Math.min(1000, Number(q.page) || 1));
     const take = 12;
@@ -137,8 +146,49 @@ export class CatalogController {
     assert(capacity >= 0 && capacity <= 500, "Invalid capacity");
     const max = Number(q.maxPrice) || 100000000;
     assert(Number.isFinite(max) && max > 0, "Invalid price");
+    const matchingCategories = q.search?.trim()
+      ? await this.db.category.findMany({
+          where: {
+            name: {
+              contains: q.search.trim().slice(0, 100),
+              mode: "insensitive",
+            },
+          },
+          select: { id: true },
+        })
+      : [];
     const where: any = {
       active: true,
+      ...(q.search?.trim()
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: q.search.trim().slice(0, 100),
+                  mode: "insensitive",
+                },
+              },
+              {
+                description: {
+                  contains: q.search.trim().slice(0, 100),
+                  mode: "insensitive",
+                },
+              },
+              {
+                services: {
+                  some: {
+                    active: true,
+                    name: {
+                      contains: q.search.trim().slice(0, 100),
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              },
+              { categoryId: { in: matchingCategories.map((c) => c.id) } },
+            ],
+          }
+        : {}),
       capacity: { gte: capacity },
       services: { some: { active: true, hourlyPaise: { lte: max } } },
       ...(q.category ? { categoryId: q.category } : {}),

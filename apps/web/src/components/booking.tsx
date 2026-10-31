@@ -38,6 +38,8 @@ export function Booking({ studio: s }: { studio: Studio }) {
     key.current = requestKey();
     setHold(null);
     setStart("");
+    setSlots([]);
+    setMessage("");
     if (!date || !serviceId) return;
     let active = true;
     setLoading(true);
@@ -46,7 +48,12 @@ export function Booking({ studio: s }: { studio: Studio }) {
         `/studios/${s.id}/availability?date=${date}&serviceId=${serviceId}&minutes=${minutes}`,
       )
         .then((r) => active && setSlots(r.slots))
-        .catch((e) => active && setMessage(e.message))
+        .catch((e) => {
+          if (active) {
+            setSlots([]);
+            setMessage(e.message);
+          }
+        })
         .finally(() => active && setLoading(false));
     refresh();
     const timer = setInterval(refresh, 15000);
@@ -122,8 +129,283 @@ export function Booking({ studio: s }: { studio: Studio }) {
           <h1>{s.name}</h1>
         </div>
       </div>
+      <nav className="detail-tabs" aria-label="Studio details">
+        <a href="#book-session">Book a slot</a>
+        <a href="#about-studio">About the studio</a>
+        <a href="#equipment">Equipment & facilities</a>
+        <a href="/policies/cancellation">Booking policies</a>
+      </nav>
       <div className="detail-layout">
-        <div className="detail-copy">
+        <section className="booking-panel" id="book-session">
+          <div className="session-controls">
+            <span className="section-index">MAKE TIME TO CREATE</span>
+            <h2>Book your session.</h2>
+            <p>
+              From {service ? money(service.hourlyPaise) : "—"}{" "}
+              <small>/ hour + applicable tax</small>
+            </p>
+            <label>
+              Service
+              <select
+                value={serviceId}
+                onChange={(e) => {
+                  setService(e.target.value);
+                  setMinutes(
+                    s.services.find((x) => x.id === e.target.value)!.minMinutes,
+                  );
+                }}
+              >
+                {s.services.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <fieldset className="date-picker">
+              <legend>Select a date</legend>
+              <div className="date-chips">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const parts = new Intl.DateTimeFormat("en-CA", {
+                    timeZone: s.timezone,
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  }).formatToParts(new Date());
+                  const part = (type: string) =>
+                    parts.find((p) => p.type === type)!.value;
+                  const day = new Date(
+                    `${part("year")}-${part("month")}-${part("day")}T12:00:00Z`,
+                  );
+                  day.setUTCDate(day.getUTCDate() + i);
+                  const value = day.toISOString().slice(0, 10);
+                  return (
+                    <button
+                      type="button"
+                      key={value}
+                      aria-pressed={date === value}
+                      className={date === value ? "active" : ""}
+                      onClick={() => setDate(value)}
+                    >
+                      <span>
+                        {new Intl.DateTimeFormat("en-IN", {
+                          weekday: "short",
+                          timeZone: "UTC",
+                        }).format(day)}
+                      </span>
+                      <strong>
+                        {new Intl.DateTimeFormat("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          timeZone: "UTC",
+                        }).format(day)}
+                      </strong>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <div className="field-pair">
+              <label>
+                Date
+                <input
+                  type="date"
+                  min={new Date().toLocaleDateString("en-CA")}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </label>
+              <label>
+                Duration
+                <select
+                  value={minutes}
+                  onChange={(e) => setMinutes(Number(e.target.value))}
+                >
+                  {service
+                    ? Array.from(
+                        {
+                          length:
+                            Math.floor(
+                              (service.maxMinutes - service.minMinutes) /
+                                service.stepMinutes,
+                            ) + 1,
+                        },
+                        (_, i) => service.minMinutes + i * service.stepMinutes,
+                      ).map((n) => (
+                        <option key={n} value={n}>
+                          {n / 60} {n === 60 ? "hour" : "hours"}
+                        </option>
+                      ))
+                    : null}
+                </select>
+              </label>
+            </div>
+            <fieldset className="slot-fieldset">
+              <legend>Choose a start time</legend>
+              {loading ? (
+                <p aria-live="polite">Checking availability…</p>
+              ) : date ? (
+                <div className="time-slots">
+                  {slots.map((slot) => (
+                    <label
+                      className={
+                        !slot.available
+                          ? "unavailable"
+                          : start === slot.startsAt
+                            ? "selected"
+                            : ""
+                      }
+                      key={slot.startsAt}
+                    >
+                      <input
+                        type="radio"
+                        name="slot"
+                        value={slot.startsAt}
+                        checked={start === slot.startsAt}
+                        disabled={!slot.available}
+                        onChange={() => setStart(slot.startsAt)}
+                      />
+                      {new Intl.DateTimeFormat("en-IN", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                        timeZone: s.timezone,
+                      }).format(new Date(slot.startsAt))}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p>Select a date to see live availability.</p>
+              )}
+              {date && !loading && !slots.length ? (
+                <p>No operating hours for this date.</p>
+              ) : null}
+            </fieldset>
+            {eligible.length > 0 ? (
+              <label>
+                Membership
+                <select
+                  value={membershipId}
+                  onChange={(e) => setMembership(e.target.value)}
+                >
+                  <option value="">No membership</option>
+                  {eligible.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.discountBps / 100}% discount · {m.remainingMinutes}{" "}
+                      minutes remaining
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+          <aside className="session-summary">
+            <h3>Booking summary</h3>
+            <div className="summary-studio">
+              <Image
+                src={s.images[0]?.url || "/images/studio-hero.webp"}
+                alt=""
+                width={70}
+                height={70}
+              />
+              <div>
+                <strong>{s.name}</strong>
+                <p>{s.location}</p>
+              </div>
+            </div>
+            {date ? (
+              <p className="summary-date">
+                Date: {date} · {minutes / 60}{" "}
+                {minutes === 60 ? "hour" : "hours"}
+                {start
+                  ? " · " +
+                    new Intl.DateTimeFormat("en-IN", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      timeZone: s.timezone,
+                    }).format(new Date(start))
+                  : ""}
+              </p>
+            ) : null}
+            <div className="price-summary">
+              {hold ? (
+                <>
+                  <div>
+                    <span>Studio session</span>
+                    <span>{money(hold.subtotalPaise)}</span>
+                  </div>
+                  <div>
+                    <span>Membership savings</span>
+                    <span>−{money(hold.discountPaise)}</span>
+                  </div>
+                  <div>
+                    <span>Tax</span>
+                    <span>{money(hold.taxPaise)}</span>
+                  </div>
+                  <div className="total">
+                    <strong>Total</strong>
+                    <strong>{money(hold.totalPaise)}</strong>
+                  </div>
+                  <p role="timer">
+                    Hold expires in{" "}
+                    {Math.max(
+                      0,
+                      Math.ceil((Date.parse(hold.expiresAt) - now) / 1000),
+                    )}{" "}
+                    seconds
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <span>Session estimate</span>
+                    <span>
+                      {service
+                        ? money(
+                            Math.round((service.hourlyPaise * minutes) / 60),
+                          )
+                        : "—"}
+                    </span>
+                  </div>
+                  <p>
+                    Final tax and eligible benefits are calculated securely when
+                    you reserve.
+                  </p>
+                </>
+              )}
+            </div>
+            <Button
+              disabled={
+                !start || busy || (hold && Date.parse(hold.expiresAt) <= now)
+              }
+              onClick={reserve}
+            >
+              {busy
+                ? "Securing your session…"
+                : hold
+                  ? "Continue to payment"
+                  : "Reserve & continue"}{" "}
+              <ArrowUpRight data-icon="inline-end" />
+            </Button>
+            <p className="secure-note">
+              <ShieldCheck /> Secure checkout powered by Razorpay
+            </p>
+            {message ? (
+              <div className="notice" role="status">
+                {message}
+                {message.includes("Sign in") ? (
+                  <Link href={"/login?next=/studios/" + s.slug}>
+                    {" "}
+                    Sign in →
+                  </Link>
+                ) : null}
+                {message.includes("confirmed") ? (
+                  <Link href="/dashboard"> Your dashboard →</Link>
+                ) : null}
+              </div>
+            ) : null}
+          </aside>
+        </section>
+        <div className="detail-copy" id="about-studio">
           <span className="section-index">THE STUDIO</span>
           <h2>
             Set the scene.
@@ -154,7 +436,7 @@ export function Booking({ studio: s }: { studio: Studio }) {
               </span>
             ))}
           </div>
-          <h3>In the kit</h3>
+          <h3 id="equipment">In the kit</h3>
           <ul>
             {s.equipment.map((e) => (
               <li key={e}>{e}</li>
@@ -193,196 +475,6 @@ export function Booking({ studio: s }: { studio: Studio }) {
             available slot.
           </p>
         </div>
-        <aside className="booking-panel">
-          <span className="section-index">MAKE TIME TO CREATE</span>
-          <h2>Book your session.</h2>
-          <p>
-            From {service ? money(service.hourlyPaise) : "—"}{" "}
-            <small>/ hour + applicable tax</small>
-          </p>
-          <label>
-            Service
-            <select
-              value={serviceId}
-              onChange={(e) => {
-                setService(e.target.value);
-                setMinutes(
-                  s.services.find((x) => x.id === e.target.value)!.minMinutes,
-                );
-              }}
-            >
-              {s.services.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="field-pair">
-            <label>
-              Date
-              <input
-                type="date"
-                min={new Date().toLocaleDateString("en-CA")}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
-            <label>
-              Duration
-              <select
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
-              >
-                {service
-                  ? Array.from(
-                      {
-                        length:
-                          Math.floor(
-                            (service.maxMinutes - service.minMinutes) /
-                              service.stepMinutes,
-                          ) + 1,
-                      },
-                      (_, i) => service.minMinutes + i * service.stepMinutes,
-                    ).map((n) => (
-                      <option key={n} value={n}>
-                        {n / 60} hours
-                      </option>
-                    ))
-                  : null}
-              </select>
-            </label>
-          </div>
-          <fieldset className="slot-fieldset">
-            <legend>Choose a start time</legend>
-            {loading ? (
-              <p aria-live="polite">Checking availability…</p>
-            ) : date ? (
-              <div className="time-slots">
-                {slots.map((slot) => (
-                  <label
-                    className={
-                      !slot.available
-                        ? "unavailable"
-                        : start === slot.startsAt
-                          ? "selected"
-                          : ""
-                    }
-                    key={slot.startsAt}
-                  >
-                    <input
-                      type="radio"
-                      name="slot"
-                      value={slot.startsAt}
-                      checked={start === slot.startsAt}
-                      disabled={!slot.available}
-                      onChange={() => setStart(slot.startsAt)}
-                    />
-                    {new Intl.DateTimeFormat("en-IN", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      timeZone: s.timezone,
-                    }).format(new Date(slot.startsAt))}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p>Select a date to see live availability.</p>
-            )}
-            {date && !loading && !slots.length ? (
-              <p>No operating hours for this date.</p>
-            ) : null}
-          </fieldset>
-          {eligible.length > 0 ? (
-            <label>
-              Membership
-              <select
-                value={membershipId}
-                onChange={(e) => setMembership(e.target.value)}
-              >
-                <option value="">No membership</option>
-                {eligible.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.discountBps / 100}% discount · {m.remainingMinutes}{" "}
-                    minutes remaining
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <div className="price-summary">
-            {hold ? (
-              <>
-                <div>
-                  <span>Studio session</span>
-                  <span>{money(hold.subtotalPaise)}</span>
-                </div>
-                <div>
-                  <span>Membership savings</span>
-                  <span>−{money(hold.discountPaise)}</span>
-                </div>
-                <div>
-                  <span>Tax</span>
-                  <span>{money(hold.taxPaise)}</span>
-                </div>
-                <div className="total">
-                  <strong>Total</strong>
-                  <strong>{money(hold.totalPaise)}</strong>
-                </div>
-                <p role="timer">
-                  Hold expires in{" "}
-                  {Math.max(
-                    0,
-                    Math.ceil((Date.parse(hold.expiresAt) - now) / 1000),
-                  )}{" "}
-                  seconds
-                </p>
-              </>
-            ) : (
-              <>
-                <div>
-                  <span>Session estimate</span>
-                  <span>
-                    {service
-                      ? money(Math.round((service.hourlyPaise * minutes) / 60))
-                      : "—"}
-                  </span>
-                </div>
-                <p>
-                  Final tax and eligible benefits are calculated securely when
-                  you reserve.
-                </p>
-              </>
-            )}
-          </div>
-          <Button
-            disabled={
-              !start || busy || (hold && Date.parse(hold.expiresAt) <= now)
-            }
-            onClick={reserve}
-          >
-            {busy
-              ? "Securing your session…"
-              : hold
-                ? "Continue to payment"
-                : "Reserve & continue"}{" "}
-            <ArrowUpRight data-icon="inline-end" />
-          </Button>
-          <p className="secure-note">
-            <ShieldCheck /> Secure checkout powered by Razorpay
-          </p>
-          {message ? (
-            <div className="notice" role="status">
-              {message}
-              {message.includes("Sign in") ? (
-                <Link href={"/login?next=/studios/" + s.slug}> Sign in →</Link>
-              ) : null}
-              {message.includes("confirmed") ? (
-                <Link href="/dashboard"> Your dashboard →</Link>
-              ) : null}
-            </div>
-          ) : null}
-        </aside>
       </div>
     </>
   );

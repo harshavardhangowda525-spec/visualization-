@@ -10,12 +10,9 @@ test("discover a studio, read availability and reach secure sign-in", async ({
     .getByRole("link", { name: "Explore studios", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Room for your vision." }),
+    page.getByRole("heading", { name: "Studios for your next creation" }),
   ).toBeVisible();
-  await page
-    .getByRole("link", { name: "View studio & availability" })
-    .first()
-    .click();
+  await page.getByRole("link", { name: "Check availability" }).first().click();
   await expect(
     page.getByRole("heading", { name: "Book your session." }),
   ).toBeVisible();
@@ -37,10 +34,12 @@ test("filters respond, FAQ expands and mobile navigation is keyboard accessible"
 }) => {
   await page.goto("/studios");
   await page.getByLabel("People", { exact: true }).fill("500");
-  await expect(page.getByText("No studios match these filters.")).toBeVisible();
+  await expect(
+    page.getByText("No studios match these filters.", { exact: false }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Reset filters" }).click();
   await expect(
-    page.getByRole("link", { name: "View studio & availability" }).first(),
+    page.getByRole("link", { name: "Check availability" }).first(),
   ).toBeVisible();
   await page.goto("/");
   await page.getByText("How do I book a studio?", { exact: false }).click();
@@ -50,7 +49,9 @@ test("filters respond, FAQ expands and mobile navigation is keyboard accessible"
   if (isMobile) {
     await page.getByRole("button", { name: "Open navigation" }).click();
     await expect(
-      page.getByRole("navigation").getByRole("link", { name: "Our studios" }),
+      page
+        .getByRole("navigation", { name: "Account navigation" })
+        .getByRole("link", { name: "Our studios" }),
     ).toBeVisible();
   }
 });
@@ -67,4 +68,39 @@ test("protected workspace does not reveal customer or financial data", async ({
   await expect(
     page.getByRole("button", { name: "Send verification code" }),
   ).toBeEnabled();
+});
+
+test("studio search, category navigation and booking date shortcuts", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("searchbox", { name: "Search studios", exact: true })
+    .fill("podcast");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "The Conversation", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "The Daylight", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("navigation", { name: "Studio categories" })
+    .getByRole("link", { name: "Photography", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "The Daylight", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "The Conversation", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("link", { name: "Check availability", exact: true })
+    .click();
+  await page
+    .getByRole("group", { name: "Select a date", exact: true })
+    .getByRole("button")
+    .nth(2)
+    .click();
+  await expect(page.getByRole("radio").first()).toBeAttached();
 });

@@ -1,14 +1,268 @@
-import { PrismaClient } from '@prisma/client';
-const db=new PrismaClient();
-async function main(){if(process.env.NODE_ENV==='production')throw new Error('Development seed is disabled in production. Import approved client data instead.');
- for(const name of ['CUSTOMER','STAFF','ADMIN'])await db.role.upsert({where:{name},create:{name},update:{}});
- const permissions:{[k:string]:string[]}={CUSTOMER:['own:bookings','own:profile','own:memberships'],STAFF:['assigned:bookings','assigned:session-verification'],ADMIN:['manage:studios','manage:bookings','manage:memberships','manage:finance']};for(const [role,actions] of Object.entries(permissions))for(const action of actions)await db.permission.upsert({where:{role_action:{role,action}},create:{role,action},update:{}});
- const cats=[['photography','Photography','From portraits to products. Find your perfect light.','/images/studio-hero.webp'],['videography','Videography','A considered canvas for films, campaigns and stories.','/images/studio-hero.webp'],['podcast','Podcast','Good conversations deserve extraordinary sound.','/images/podcast.webp']];
- for(const [slug,name,description,image] of cats)await db.category.upsert({where:{slug},create:{slug,name,description,image},update:{}});
- const fixtures=[{slug:'the-daylight',name:'The Daylight',category:'photography',description:'A generous cyclorama, warm natural light and room to experiment. A versatile space for editorial shoots, product stories and the portraits that matter.',price:180000,capacity:12,image:'/images/studio-hero.webp',facilities:['Air conditioning','Lighting included','Changing room']},{slug:'the-film-room',name:'The Film Room',category:'videography',description:'An adaptable production space for your next moving image. Controlled lighting, flexible arrangements and a clean canvas for creative teams.',price:240000,capacity:15,image:'/images/studio-hero.webp',facilities:['Air conditioning','Lighting included','Changing room']},{slug:'the-conversation',name:'The Conversation',category:'podcast',description:'An intimate, sound-treated room for conversations worth keeping. Professional microphones, a considered setting and the freedom to focus on your story.',price:120000,capacity:4,image:'/images/podcast.webp',facilities:['Air conditioning','Sound treated']}];
- for(const f of fixtures){if(await db.studio.findUnique({where:{slug:f.slug}}))continue;const category=await db.category.findUniqueOrThrow({where:{slug:f.category}});await db.studio.create({data:{slug:f.slug,name:f.name,description:f.description,location:'Bengaluru · Development fixture',categoryId:category.id,capacity:f.capacity,equipment:f.category==='podcast'?['2 broadcast microphones','Audio interface','Headphones']:['Softbox lighting','Reflectors','Backdrop system'],images:{create:[{url:f.image,alt:f.name+' — generated concept imagery',sort:0}]},facilities:{create:f.facilities.map(name=>({name}))},hours:{create:Array.from({length:7},(_,weekday)=>({weekday,openMinute:540,closeMinute:1260}))},services:{create:[{name:f.category==='podcast'?'Podcast recording':'Studio rental',hourlyPaise:f.price,minMinutes:60,maxMinutes:480,stepMinutes:30,taxBps:1800}]}}});}
- for(const plan of [{name:'Creator',description:'For the ideas that keep coming.',pricePaise:499900,days:30,discountBps:1000,creditMinutes:0,maxBookings:6,benefits:['10% off eligible studio bookings','Up to 6 bookings in 30 days','One prepaid payment']},{name:'Collective',description:'More room for your creative rhythm.',pricePaise:899900,days:30,discountBps:1500,creditMinutes:60,maxBookings:12,benefits:['15% off eligible studio bookings','60 included studio minutes','Up to 12 bookings in 30 days']}]){if(!await db.membershipPlan.findFirst({where:{name:plan.name}}))await db.membershipPlan.create({data:plan});}
- const settings={business:{name:'STILL / HOUSE',developmentFixtures:true,email:null,phone:null,address:null,socials:[]},bookingPolicy:{cancellationHours:24,refundBps:10000},portfolio:[{url:'/images/studio-hero.webp',alt:'Warm cyclorama with professional lighting',caption:'The art of possibility · Concept imagery'},{url:'/images/podcast.webp',alt:'Walnut acoustic recording studio',caption:'Made for conversation · Concept imagery'}],faq:[{question:'How do I book a studio?',answer:'Explore the spaces, select an available date and time, sign in with your mobile number and complete secure payment. Your session is confirmed after payment verification.'},{question:'What is included in my booking?',answer:'Each space lists its facilities, equipment, capacity and hourly price. Check the studio details before booking. Taxes are shown in your final booking summary.'},{question:'Can I cancel or reschedule?',answer:'The development policy allows cancellations and rescheduling at least 24 hours before the session. Eligible refunds are reviewed by the administrator. Final client policies must be approved before launch.'},{question:'How do memberships work?',answer:'Memberships are prepaid plans with a fixed duration, eligible-booking discounts and defined usage limits. They do not renew automatically.'},{question:'Can I extend my session?',answer:'Extensions depend on availability and payment. Please book the extra available period before your existing session ends.'},{question:'What happens when I arrive?',answer:'Show your private session start code to assigned staff. A separate end code verifies completion. Codes are single-use and expire after three minutes.'}],policies:{privacy:{title:'Privacy policy — draft for client approval',text:'Development policy draft. The platform processes phone numbers, profile details, bookings and transaction references to deliver studio services. Card details are handled by Razorpay. The client must approve the data controller identity, lawful purposes, retention periods, deletion process, contact details and vendor disclosures before launch.'},terms:{title:'Terms & conditions — draft for client approval',text:'Development policy draft. Booking requires a verified account and captured payment. Availability is subject to a ten-minute temporary hold. Studio rules, equipment liability, acceptable use, jurisdiction, business identity and consumer terms require client and legal approval before launch.'},cancellation:{title:'Cancellation & refunds — development policy',text:'Unapproved development policy: customers may cancel or reschedule at least 24 hours before their scheduled start. Eligible cancellations request a refund of 100% of the paid booking amount, reviewed and submitted by the administrator. Gateway processing times depend on the provider. Captures after a hold expires enter reconciliation and refund review. Replace with approved client terms before accepting real customers.'}}};
- for(const [key,value] of Object.entries(settings))await db.setting.upsert({where:{key},create:{key,value},update:{}});
- console.log('Development catalogue seeded. No fake customers, bookings, reviews or admin accounts were created.');}
-main().finally(()=>db.$disconnect());
+import { PrismaClient } from "@prisma/client";
+const db = new PrismaClient();
+async function main() {
+  if (process.env.NODE_ENV === "production")
+    throw new Error(
+      "Development seed is disabled in production. Import approved client data instead.",
+    );
+  for (const name of ["CUSTOMER", "STAFF", "ADMIN"])
+    await db.role.upsert({ where: { name }, create: { name }, update: {} });
+  const permissions: { [k: string]: string[] } = {
+    CUSTOMER: ["own:bookings", "own:profile", "own:memberships"],
+    STAFF: ["assigned:bookings", "assigned:session-verification"],
+    ADMIN: [
+      "manage:studios",
+      "manage:bookings",
+      "manage:memberships",
+      "manage:finance",
+    ],
+  };
+  for (const [role, actions] of Object.entries(permissions))
+    for (const action of actions)
+      await db.permission.upsert({
+        where: { role_action: { role, action } },
+        create: { role, action },
+        update: {},
+      });
+  const cats = [
+    [
+      "photography",
+      "Photography",
+      "From portraits to products. Find your perfect light.",
+      "/images/studio-hero.webp",
+    ],
+    [
+      "videography",
+      "Videography",
+      "A considered canvas for films, campaigns and stories.",
+      "/images/film.webp",
+    ],
+    [
+      "podcast",
+      "Podcast",
+      "Good conversations deserve extraordinary sound.",
+      "/images/podcast.webp",
+    ],
+  ];
+  for (const [slug, name, description, image] of cats)
+    await db.category.upsert({
+      where: { slug },
+      create: { slug, name, description, image },
+      update: {},
+    });
+  const fixtures = [
+    {
+      slug: "the-daylight",
+      name: "The Daylight",
+      category: "photography",
+      description:
+        "A generous cyclorama, warm natural light and room to experiment. A versatile space for editorial shoots, product stories and the portraits that matter.",
+      price: 180000,
+      capacity: 12,
+      image: "/images/studio-hero.webp",
+      facilities: ["Air conditioning", "Lighting included", "Changing room"],
+    },
+    {
+      slug: "the-film-room",
+      name: "The Film Room",
+      category: "videography",
+      description:
+        "An adaptable production space for your next moving image. Controlled lighting, flexible arrangements and a clean canvas for creative teams.",
+      price: 240000,
+      capacity: 15,
+      image: "/images/film.webp",
+      facilities: ["Air conditioning", "Lighting included", "Changing room"],
+    },
+    {
+      slug: "the-conversation",
+      name: "The Conversation",
+      category: "podcast",
+      description:
+        "An intimate, sound-treated room for conversations worth keeping. Professional microphones, a considered setting and the freedom to focus on your story.",
+      price: 120000,
+      capacity: 4,
+      image: "/images/podcast.webp",
+      facilities: ["Air conditioning", "Sound treated"],
+    },
+  ];
+  for (const f of fixtures) {
+    if (await db.studio.findUnique({ where: { slug: f.slug } })) continue;
+    const category = await db.category.findUniqueOrThrow({
+      where: { slug: f.category },
+    });
+    await db.studio.create({
+      data: {
+        slug: f.slug,
+        name: f.name,
+        description: f.description,
+        location: "Bengaluru · Development fixture",
+        categoryId: category.id,
+        capacity: f.capacity,
+        equipment:
+          f.category === "podcast"
+            ? ["2 broadcast microphones", "Audio interface", "Headphones"]
+            : ["Softbox lighting", "Reflectors", "Backdrop system"],
+        images: {
+          create: [
+            {
+              url: f.image,
+              alt: f.name + " — generated concept imagery",
+              sort: 0,
+            },
+          ],
+        },
+        facilities: { create: f.facilities.map((name) => ({ name })) },
+        hours: {
+          create: Array.from({ length: 7 }, (_, weekday) => ({
+            weekday,
+            openMinute: 540,
+            closeMinute: 1260,
+          })),
+        },
+        services: {
+          create: [
+            {
+              name:
+                f.category === "podcast"
+                  ? "Podcast recording"
+                  : "Studio rental",
+              hourlyPaise: f.price,
+              minMinutes: 60,
+              maxMinutes: 480,
+              stepMinutes: 30,
+              taxBps: 1800,
+            },
+          ],
+        },
+      },
+    });
+  }
+  // Refresh only the known generated development-fixture media; preserve client-edited records.
+  const fixtureFilm = await db.studio.findFirst({
+    where: {
+      slug: "the-film-room",
+      location: "Bengaluru · Development fixture",
+    },
+  });
+  if (fixtureFilm)
+    await db.studioImage.updateMany({
+      where: { studioId: fixtureFilm.id, url: "/images/studio-hero.webp" },
+      data: { url: "/images/film.webp" },
+    });
+  await db.category.updateMany({
+    where: { slug: "videography", image: "/images/studio-hero.webp" },
+    data: { image: "/images/film.webp" },
+  });
+  for (const plan of [
+    {
+      name: "Creator",
+      description: "For the ideas that keep coming.",
+      pricePaise: 499900,
+      days: 30,
+      discountBps: 1000,
+      creditMinutes: 0,
+      maxBookings: 6,
+      benefits: [
+        "10% off eligible studio bookings",
+        "Up to 6 bookings in 30 days",
+        "One prepaid payment",
+      ],
+    },
+    {
+      name: "Collective",
+      description: "More room for your creative rhythm.",
+      pricePaise: 899900,
+      days: 30,
+      discountBps: 1500,
+      creditMinutes: 60,
+      maxBookings: 12,
+      benefits: [
+        "15% off eligible studio bookings",
+        "60 included studio minutes",
+        "Up to 12 bookings in 30 days",
+      ],
+    },
+  ]) {
+    if (!(await db.membershipPlan.findFirst({ where: { name: plan.name } })))
+      await db.membershipPlan.create({ data: plan });
+  }
+  const settings = {
+    business: {
+      name: "STILL / HOUSE",
+      developmentFixtures: true,
+      email: null,
+      phone: null,
+      address: null,
+      socials: [],
+    },
+    bookingPolicy: { cancellationHours: 24, refundBps: 10000 },
+    portfolio: [
+      {
+        url: "/images/studio-hero.webp",
+        alt: "Warm cyclorama with professional lighting",
+        caption: "The art of possibility · Concept imagery",
+      },
+      {
+        url: "/images/podcast.webp",
+        alt: "Walnut acoustic recording studio",
+        caption: "Made for conversation · Concept imagery",
+      },
+    ],
+    faq: [
+      {
+        question: "How do I book a studio?",
+        answer:
+          "Explore the spaces, select an available date and time, sign in with your mobile number and complete secure payment. Your session is confirmed after payment verification.",
+      },
+      {
+        question: "What is included in my booking?",
+        answer:
+          "Each space lists its facilities, equipment, capacity and hourly price. Check the studio details before booking. Taxes are shown in your final booking summary.",
+      },
+      {
+        question: "Can I cancel or reschedule?",
+        answer:
+          "The development policy allows cancellations and rescheduling at least 24 hours before the session. Eligible refunds are reviewed by the administrator. Final client policies must be approved before launch.",
+      },
+      {
+        question: "How do memberships work?",
+        answer:
+          "Memberships are prepaid plans with a fixed duration, eligible-booking discounts and defined usage limits. They do not renew automatically.",
+      },
+      {
+        question: "Can I extend my session?",
+        answer:
+          "Extensions depend on availability and payment. Please book the extra available period before your existing session ends.",
+      },
+      {
+        question: "What happens when I arrive?",
+        answer:
+          "Show your private session start code to assigned staff. A separate end code verifies completion. Codes are single-use and expire after three minutes.",
+      },
+    ],
+    policies: {
+      privacy: {
+        title: "Privacy policy — draft for client approval",
+        text: "Development policy draft. The platform processes phone numbers, profile details, bookings and transaction references to deliver studio services. Card details are handled by Razorpay. The client must approve the data controller identity, lawful purposes, retention periods, deletion process, contact details and vendor disclosures before launch.",
+      },
+      terms: {
+        title: "Terms & conditions — draft for client approval",
+        text: "Development policy draft. Booking requires a verified account and captured payment. Availability is subject to a ten-minute temporary hold. Studio rules, equipment liability, acceptable use, jurisdiction, business identity and consumer terms require client and legal approval before launch.",
+      },
+      cancellation: {
+        title: "Cancellation & refunds — development policy",
+        text: "Unapproved development policy: customers may cancel or reschedule at least 24 hours before their scheduled start. Eligible cancellations request a refund of 100% of the paid booking amount, reviewed and submitted by the administrator. Gateway processing times depend on the provider. Captures after a hold expires enter reconciliation and refund review. Replace with approved client terms before accepting real customers.",
+      },
+    },
+  };
+  for (const [key, value] of Object.entries(settings))
+    await db.setting.upsert({
+      where: { key },
+      create: { key, value },
+      update: {},
+    });
+  console.log(
+    "Development catalogue seeded. No fake customers, bookings, reviews or admin accounts were created.",
+  );
+}
+main().finally(() => db.$disconnect());

@@ -73,7 +73,12 @@ beforeAll(async () => {
     data: { cognitoSub: randomUUID(), phone: "+919999999993", role: "STAFF" },
   });
   const c = await db.category.create({
-    data: { slug: "test", name: "Test", description: "Test", image: "/test" },
+    data: {
+      slug: "test",
+      name: "Creative Category",
+      description: "Test",
+      image: "/test",
+    },
   });
   studio = await db.studio.create({
     data: {
@@ -446,6 +451,22 @@ describe.sequential(
       app = await bootstrap();
       const base = "http://127.0.0.1:4101/api/v1";
       expect((await fetch(base + "/health")).status).toBe(200);
+      for (const term of ["test", "RENTAL", "creative"]) {
+        const found = await (
+          await fetch(base + "/studios?search=" + term)
+        ).json();
+        expect(found.items.map((s: any) => s.id)).toContain(studio.id);
+      }
+      const missing = await (
+        await fetch(base + "/studios?search=nonexistent-space")
+      ).json();
+      expect(missing.items).toEqual([]);
+      const locations = await (await fetch(base + "/locations")).json();
+      expect(locations).toContain("Test");
+      const wrongLocation = await (
+        await fetch(base + "/studios?search=test&location=nowhere")
+      ).json();
+      expect(wrongLocation.items).toEqual([]);
       expect((await fetch(base + "/admin/dashboard")).status).toBe(401);
       const { hash } = require("../apps/api/dist/domain.js");
       const token = randomUUID();

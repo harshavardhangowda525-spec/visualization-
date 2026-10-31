@@ -11,11 +11,13 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { api, Studio, money } from "@/lib/api";
+import { StudioCard } from "./studio-card";
 import { Button } from "./ui/button";
 export function Discovery() {
   const params = useSearchParams();
   const [category, setCategory] = useState(params.get("category") || ""),
-    [location, setLocation] = useState(""),
+    [location, setLocation] = useState(params.get("location") || ""),
+    [search, setSearch] = useState(params.get("search") || ""),
     [capacity, setCapacity] = useState(""),
     [maxPrice, setMaxPrice] = useState(""),
     [facility, setFacility] = useState(""),
@@ -27,6 +29,12 @@ export function Discovery() {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(true);
   useEffect(() => {
+    setCategory(params.get("category") || "");
+    setSearch(params.get("search") || "");
+    setLocation(params.get("location") || "");
+    setPage(1);
+  }, [params]);
+  useEffect(() => {
     api("/categories")
       .then(setCategories)
       .catch(() => {});
@@ -37,6 +45,7 @@ export function Discovery() {
     setError("");
     const query = new URLSearchParams({
       category,
+      search,
       location,
       capacity,
       maxPrice: maxPrice ? String(Number(maxPrice) * 100) : "",
@@ -68,21 +77,35 @@ export function Discovery() {
     return () => {
       active = false;
     };
-  }, [category, location, capacity, maxPrice, facility, date, page]);
+  }, [category, search, location, capacity, maxPrice, facility, date, page]);
   return (
     <>
       <section className="listing-intro">
-        <span className="section-index">THE SPACES / STILL HOUSE</span>
-        <h1>
-          Room for <em>your vision.</em>
-        </h1>
-        <p>Find your light. Set your scene. Make something extraordinary.</p>
+        <span className="section-index">DISCOVER / STUDIOS</span>
+        <h1>Studios for your next creation</h1>
+        <p>
+          Photography, filmmaking and podcasts. Find your space and book your
+          time.
+        </p>
       </section>
       <section className="section listing-section">
         <div className="filters">
           <span>
             <SlidersHorizontal /> Find your space
           </span>
+          <label>
+            Search studios
+            <input
+              type="search"
+              value={search}
+              maxLength={100}
+              placeholder="Studio or service"
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
           <label>
             Studio type
             <select
@@ -157,6 +180,7 @@ export function Discovery() {
           <Button
             variant="ghost"
             onClick={() => {
+              setSearch("");
               setCategory("");
               setLocation("");
               setCapacity("");
@@ -186,48 +210,13 @@ export function Discovery() {
             No studios match these filters. Try another date or a wider search.
           </p>
         ) : null}
-        <div className="studio-grid">
+        <div className="market-studio-grid discovery-cards">
           {studios.map((s) => (
-            <article className="studio-card" key={s.id}>
-              <Link href={"/studios/" + s.slug}>
-                <div className="studio-photo">
-                  <Image
-                    src={s.images[0]?.url || "/images/studio-hero.webp"}
-                    alt={s.images[0]?.alt || s.name}
-                    fill
-                    sizes="(max-width:700px) 100vw, 33vw"
-                  />
-                </div>
-                <div className="studio-title">
-                  <h2>{s.name}</h2>
-                  <ArrowUpRight />
-                </div>
-              </Link>
-              <p>
-                <MapPin />
-                {s.location} · <Users />
-                {s.capacity} people
-              </p>
-              <p>{s.description}</p>
-              <div className="studio-meta">
-                <span>
-                  {s.facilities
-                    .slice(0, 2)
-                    .map((f) => f.name)
-                    .join(" · ")}
-                </span>
-                <strong>
-                  {s.services[0] ? money(s.services[0].hourlyPaise) : "—"}
-                  <small> / hr</small>
-                </strong>
-              </div>
-              <Button asChild variant="outline">
-                <Link href={"/studios/" + s.slug}>
-                  View studio &amp; availability{" "}
-                  <ArrowUpRight data-icon="inline-end" />
-                </Link>
-              </Button>
-            </article>
+            <StudioCard
+              key={s.id}
+              studio={s}
+              category={categories.find((c) => c.id === s.categoryId)?.name}
+            />
           ))}
         </div>
         <div className="pagination">

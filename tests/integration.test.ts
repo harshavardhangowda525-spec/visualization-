@@ -451,6 +451,25 @@ describe.sequential(
       app = await bootstrap();
       const base = "http://127.0.0.1:4101/api/v1";
       expect((await fetch(base + "/health")).status).toBe(200);
+      delete process.env.CRON_SECRET;
+      expect((await fetch(base + "/internal/maintenance")).status).toBe(503);
+      process.env.CRON_SECRET = "local-test-cron-secret-" + randomUUID();
+      expect((await fetch(base + "/internal/maintenance")).status).toBe(401);
+      expect(
+        (
+          await fetch(base + "/internal/maintenance", {
+            headers: { Authorization: "Bearer invalid" },
+          })
+        ).status,
+      ).toBe(401);
+      expect(
+        (
+          await fetch(base + "/internal/maintenance", {
+            headers: { Authorization: "Bearer " + process.env.CRON_SECRET },
+          })
+        ).status,
+      ).toBe(200);
+      delete process.env.CRON_SECRET;
       for (const term of ["test", "RENTAL", "creative"]) {
         const found = await (
           await fetch(base + "/studios?search=" + term)

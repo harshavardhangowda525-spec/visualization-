@@ -21,6 +21,7 @@ import { BookingService } from "./bookings";
 import { PaymentService } from "./payments";
 import { SessionService } from "./sessions";
 import { DomainError } from "./domain";
+import { MaintenanceController } from "./maintenance";
 import * as Controllers from "./controllers";
 @Catch()
 class Errors implements ExceptionFilter {
@@ -106,7 +107,7 @@ class Errors implements ExceptionFilter {
 class DomainModule {}
 @Module({ controllers: [Controllers.AuthController] })
 class AuthModule {}
-@Module({ controllers: [Controllers.CatalogController] })
+@Module({ controllers: [Controllers.CatalogController, MaintenanceController] })
 class CatalogModule {}
 @Module({ controllers: [Controllers.BookingsController] })
 class BookingModule {}

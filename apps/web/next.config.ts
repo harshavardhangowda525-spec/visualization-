@@ -12,6 +12,8 @@ const config: NextConfig = {
       : [],
   },
   async rewrites() {
+    // Vercel Services owns the same-origin API route; never proxy to localhost there.
+    if (process.env.VERCEL === "1") return [];
     return [
       {
         source: "/api/:path*",

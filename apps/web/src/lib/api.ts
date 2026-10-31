@@ -69,7 +69,10 @@ export async function api<T = any>(
 }
 export async function serverApi<T = any>(path: string): Promise<T> {
   const r = await fetch(
-    (process.env.API_INTERNAL_URL || "http://127.0.0.1:4000") +
+    (process.env.API_INTERNAL_URL || "http://127.0.0.1:4000").replace(
+      /\/+$/,
+      "",
+    ) +
       "/api/v1" +
       path,
     { cache: "no-store", signal: AbortSignal.timeout(6000) },
